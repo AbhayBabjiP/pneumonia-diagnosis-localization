@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import json
 import streamlit as st
 import torch
 from PIL import Image, ImageDraw
@@ -34,7 +35,16 @@ def load_model(checkpoint_path):
     model = build_model(pretrained=False).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
-    return model, device, checkpoint
+    threshold = 0.5
+    metrics_path = Path("results/metrics.json")
+    if metrics_path.exists():
+        try:
+            experiment = json.loads(metrics_path.read_text()).get("experiment", {})
+            if experiment.get("seed") == checkpoint.get("seed") and experiment.get("selected_images") == checkpoint.get("max_images"):
+                threshold = float(experiment.get("classification_threshold", threshold))
+        except (ValueError, OSError):
+            pass
+    return model, device, checkpoint, threshold
 
 
 st.set_page_config(page_title="Pneumonia Diagnosis and Localization", layout="wide")
@@ -61,14 +71,15 @@ if uploaded is not None:
     except Exception as exc:
         st.error(f"Could not read uploaded image: {exc}")
         st.stop()
-    model, device, checkpoint = load_model(str(CHECKPOINT))
+    model, device, checkpoint, threshold = load_model(str(CHECKPOINT))
     size = int(checkpoint.get("image_size", 224))
     tensor = prepare_image(image, size).to(device)
     with torch.no_grad():
         probability = float(model(tensor).sigmoid().item())
-    prediction = probability >= 0.5
+    prediction = probability >= threshold
     st.metric("Pneumonia probability", f"{probability:.1%}")
     st.subheader("Pneumonia" if prediction else "No pneumonia")
+    st.caption(f"Decision threshold selected on validation data: {threshold:.3f}")
     with torch.enable_grad():
         gradcam = GradCAM(model)
         cam = gradcam(tensor, 1 if prediction else 0)

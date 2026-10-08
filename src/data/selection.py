@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
-MAX_DATASET_IMAGES = 15_000
+MAX_DATASET_IMAGES = 26_684
 
 
 @dataclass(frozen=True)
@@ -101,7 +101,7 @@ def select_stratified_images(
 
 def split_image_ids(
     selected_ids: Sequence[str], seed: int = 42,
-    train_fraction: float = 0.70, validation_fraction: float = 0.20, test_fraction: float = 0.10,
+    train_fraction: float = 0.80, validation_fraction: float = 0.10, test_fraction: float = 0.10,
 ) -> dict[str, tuple[str, ...]]:
     """Reproducibly split the already-selected subset into three partitions."""
     if abs(train_fraction + validation_fraction + test_fraction - 1.0) > 1e-9:

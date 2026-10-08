@@ -1,6 +1,6 @@
 # Final presentation: exact slide content
 
-**Final run:** ImageNet-pretrained DenseNet121, trained for two epochs on a reproducible 1,000-image subset (seed 42, 128×128 inputs, batch size 8) using MPS. Evaluation used a 100-image held-out split. Localization was weak; present that result candidly.
+**Final run:** ImageNet-pretrained DenseNet121, trained for two epochs on all 26,684 labeled images (seed 42, 128×128 inputs, batch size 32) using MPS. The 80/10/10 split has 2,669 held-out test images. Validation selected a fixed probability threshold of 0.8464. Accuracy was 83.5%, below 85%; localization remains weak.
 
 ## 1. Title
 
@@ -25,8 +25,8 @@ Presenter: [Name] · [Course / Institution] · [Date]
 - Source: RSNA Pneumonia Detection Challenge training labels.
 - Local training set: 26,684 DICOM files and 30,227 annotation rows across 26,684 patientIds.
 - Grouped targets: 6,012 positive and 20,672 negative images; 3,398 images have multiple annotations.
-- Experiment subset: 1,000 images, 225 positive / 775 negative, seed 42.
-- Split: train 700 (160/540), validation 200 (38/162), test 100 (27/73), positive/negative.
+- Experiment: all 26,684 labeled images, 6,012 positive / 20,672 negative, seed 42.
+- Split: train 21,347 (4,783/16,564), validation 2,668 (626/2,042), test 2,669 (603/2,066), positive/negative.
 
 ## 5. Existing paper / method
 
@@ -60,37 +60,38 @@ Presenter: [Name] · [Course / Institution] · [Date]
 ## 9. Methodology
 
 - Aggregate all annotation rows by patientId.
-- Select up to 1,000 images with seed 42; split selected IDs 70/20/10.
+- Select image IDs with seed 42; split 80/10/10 after image-level grouping.
 - Train with binary cross-entropy and class weighting.
 - Evaluate classification on every held-out test image.
 - Evaluate IoU on positive test images with boxes; classifier false negatives score zero in the primary result.
 
 ## 10. Training
 
-- Command: `.venv/bin/python -m src.train --data-root data/raw --max-images 1000 --seed 42 --epochs 2 --batch-size 8 --image-size 128 --pretrained`
+- Command: `.venv/bin/python -m src.train --data-root data/raw --max-images 26684 --seed 42 --epochs 2 --batch-size 32 --image-size 128 --pretrained`
 - Architecture: ImageNet-pretrained DenseNet121; AdamW, learning rate 1e-4, class-weighted BCE.
-- Device: MPS. Best checkpoint was epoch 2, validation loss 0.7705.
+- Device: MPS. Best checkpoint was epoch 2, validation loss 0.6925.
 - Checkpoint: `checkpoints/best_model.pt`.
 
 ## 11. Classification results
 
-- Held-out test set: 100 images; confusion matrix `[[57, 16], [9, 18]]`.
-- Accuracy **0.7500**, precision **0.5294**, sensitivity **0.6667**, specificity **0.7808**.
-- F1 **0.5902**, AUROC **0.8057**.
+- Validation-selected threshold **0.8464** (validation accuracy 0.8411); applied unchanged to held-out test.
+- Held-out test set: 2,669 images; confusion matrix `[[1938, 128], [312, 291]]`.
+- Accuracy **0.8351**, precision **0.6945**, sensitivity **0.4826**, specificity **0.9380**.
+- F1 **0.5695**, AUROC **0.8697**. This did not reach the requested 85% accuracy.
 - These are this project's results, not the reference paper's reported metrics.
 
 ## 12. Localization results
 
-- 27 pneumonia-positive test images with ground-truth boxes.
-- Primary classifier-conditioned mean IoU **0.0839**; **0%** reached IoU ≥ 0.5.
-- Classifier-independent mean IoU **0.0906**; **0%** reached IoU ≥ 0.5.
+- 603 pneumonia-positive test images with ground-truth boxes.
+- Primary classifier-conditioned mean IoU **0.1174**; **1.0%** reached IoU ≥ 0.5.
+- Classifier-independent mean IoU **0.1820**; **1.3%** reached IoU ≥ 0.5.
 - A classifier false negative receives IoU 0 in the primary score. Localization performance is weak.
 
 ## 13. Visual examples
 
-- Use `results/examples/positive_correctly_classified_88c25715-03f5-474e-9cee-5ad1f7beb4ce.png` (classifier positive, IoU 0.365).
-- Use `results/examples/positive_incorrectly_localized_38ffaafc-11bb-4ca1-8242-dbb576fc8cc6.png` (IoU 0.000).
-- Use `results/examples/negative_example_17e48dc0-50da-4085-b6bc-4627c165bd13.png` (negative ground truth, predicted probability 0.640; false positive).
+- Use `results/examples/positive_correctly_classified_cb4a1fca-136c-4577-bcef-d934c9f14f2c.png` (classifier positive, IoU 0.639).
+- Use `results/examples/positive_incorrectly_localized_e09dbb79-cdc9-44a1-9547-6f5969a170dc.png` (IoU 0.000).
+- Use `results/examples/negative_example_68a43ce5-2021-4c3c-8e62-11a93d132ff5.png` (negative ground truth, predicted probability 0.316).
 - Green box is Grad-CAM prediction; red boxes are RSNA ground truth.
 
 ## 14. Live demo
@@ -101,8 +102,9 @@ Presenter: [Name] · [Course / Institution] · [Date]
 
 ## 15. Limitations
 
-- The 1,000-image subset and 100-image test set are small; results may vary with seed and split.
-- Localization is weak: mean IoU 0.0839, with no IoU ≥ 0.5 on the primary metric.
+- Accuracy was 83.5%, below the requested 85%; the tuned threshold yields only 48.3% sensitivity.
+- Localization is weak: mean IoU 0.1174; only 1.0% reached IoU ≥ 0.5 on the primary metric.
+- This is an evaluation on the RSNA training partition, not external clinical validation.
 - Grad-CAM boxes are coarse explanations, not clinically validated lesion outlines.
 - The reference paper's localization evaluation remains ambiguous.
 

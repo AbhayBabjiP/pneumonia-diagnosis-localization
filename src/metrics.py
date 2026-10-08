@@ -39,6 +39,18 @@ def binary_metrics(labels, probabilities, threshold=0.5):
     }
 
 
+def best_accuracy_threshold(labels, probabilities):
+    """Choose the accuracy-maximizing threshold using validation data only."""
+    y = np.asarray(labels, dtype=np.int64)
+    p = np.asarray(probabilities, dtype=np.float64)
+    if not len(y):
+        return 0.5, 0.0
+    thresholds = np.unique(p)[::-1]
+    accuracies = np.asarray([np.mean((p >= threshold).astype(np.int64) == y) for threshold in thresholds])
+    best = int(accuracies.argmax())
+    return float(thresholds[best]), float(accuracies[best])
+
+
 def box_iou(a, b):
     ax, ay, aw, ah = a
     bx, by, bw, bh = b

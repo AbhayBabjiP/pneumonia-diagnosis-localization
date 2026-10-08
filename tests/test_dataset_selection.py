@@ -15,9 +15,9 @@ def make_records(positive=120, negative=80):
 
 class DatasetSelectionTests(unittest.TestCase):
  def test_selected_count_at_most_project_max(self):
-    report = select_stratified_images(make_records(10_000, 10_000), 15_000, 42)
+    report = select_stratified_images(make_records(15_000, 15_000), 26_684, 42)
     self.assertLessEqual(report.selected_count, MAX_DATASET_IMAGES)
-    self.assertEqual(report.selected_count, 15_000)
+    self.assertEqual(report.selected_count, 26_684)
 
 
  def test_same_seed_selects_same_ids(self):
@@ -45,7 +45,7 @@ class DatasetSelectionTests(unittest.TestCase):
 
  def test_max_images_above_limit_raises(self):
     with self.assertRaisesRegex(ValueError, "exceeds the project maximum"):
-        select_stratified_images(make_records(), 15_001, 42)
+        select_stratified_images(make_records(), 26_685, 42)
 
 
  def test_split_is_reproducible_after_selection(self):

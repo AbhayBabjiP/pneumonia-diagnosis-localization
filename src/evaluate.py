@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from src.data.rsna import RsnaDataset, prepare_split
 from src.device import select_device
-from src.metrics import binary_metrics, box_iou, heatmap_box, save_confusion_svg, save_roc_svg, save_visual, write_json
+from src.metrics import best_accuracy_threshold, binary_metrics, box_iou, heatmap_box, save_confusion_svg, save_roc_svg, save_visual, write_json
 from src.model import GradCAM, build_model
 
 
@@ -43,6 +43,16 @@ def main(argv=None):
     model = build_model(pretrained=False).to(device)
     model.load_state_dict(checkpoint["state_dict"]); model.eval()
     size = checkpoint.get("image_size", 224)
+    val_ds = RsnaDataset(root, splits["validation"], records, size)
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
+    val_y=[]; val_probabilities=[]
+    with torch.no_grad():
+        for images, labels, _batch_ids in val_loader:
+            logits=model(images.to(device)).flatten()
+            val_y.extend(labels.numpy().astype(int).tolist())
+            val_probabilities.extend(logits.sigmoid().cpu().numpy().tolist())
+    threshold, validation_accuracy = best_accuracy_threshold(val_y, val_probabilities)
+    print(f"Validation-selected classification threshold: {threshold:.6f}; validation accuracy={validation_accuracy:.4f}")
     ds = RsnaDataset(root, splits["test"], records, size)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
     y=[]; probabilities=[]; ids=[]
@@ -52,11 +62,11 @@ def main(argv=None):
             y.extend(labels.numpy().astype(int).tolist())
             probabilities.extend(logits.sigmoid().cpu().numpy().tolist())
             ids.extend(batch_ids)
-    metrics=binary_metrics(y, probabilities)
+    metrics=binary_metrics(y, probabilities, threshold=threshold)
     out=Path(args.results); out.mkdir(parents=True,exist_ok=True)
     save_confusion_svg(metrics["confusion_matrix"],out/"confusion_matrix.svg")
     save_roc_svg(y,probabilities,out/"roc_curve.svg")
-    experiment={"selected_images":selected.selected_count,"positive_images":selected.positive_count,"negative_images":selected.negative_count,"seed":args.seed,"split_counts":{k:len(v) for k,v in splits.items()},"split_class_counts":{name:{"positive":sum(int(records[i]["target"]) for i in ids),"negative":sum(1-int(records[i]["target"]) for i in ids)} for name,ids in splits.items()},"device":str(device),"training_device":checkpoint.get("train_device","not-recorded"),"epochs_requested":checkpoint.get("epochs_requested"),"best_epoch":checkpoint.get("best_epoch"),"best_validation_loss":checkpoint.get("best_validation_loss"),"batch_size":checkpoint.get("batch_size"),"image_size":checkpoint.get("image_size"),"pretrained":checkpoint.get("pretrained"),"optimizer":checkpoint.get("optimizer"),"learning_rate":checkpoint.get("learning_rate"),"checkpoint":str(checkpoint_path)}
+    experiment={"selected_images":selected.selected_count,"positive_images":selected.positive_count,"negative_images":selected.negative_count,"seed":args.seed,"split_counts":{k:len(v) for k,v in splits.items()},"split_class_counts":{name:{"positive":sum(int(records[i]["target"]) for i in ids),"negative":sum(1-int(records[i]["target"]) for i in ids)} for name,ids in splits.items()},"classification_threshold":threshold,"threshold_selection":"Maximum validation accuracy; selected using validation partition only, then applied unchanged to the held-out test set.","validation_accuracy_at_threshold":validation_accuracy,"device":str(device),"training_device":checkpoint.get("train_device","not-recorded"),"epochs_requested":checkpoint.get("epochs_requested"),"best_epoch":checkpoint.get("best_epoch"),"best_validation_loss":checkpoint.get("best_validation_loss"),"batch_size":checkpoint.get("batch_size"),"image_size":checkpoint.get("image_size"),"pretrained":checkpoint.get("pretrained"),"optimizer":checkpoint.get("optimizer"),"learning_rate":checkpoint.get("learning_rate"),"checkpoint":str(checkpoint_path)}
     write_json({"classification":metrics,"experiment":experiment},out/"metrics.json")
     cam_engine=GradCAM(model)
     localization={"conditioned":[],"independent":[]}
@@ -66,7 +76,7 @@ def main(argv=None):
         original=ds.image_ids.index(image_id)
         x,_,_=ds[original]
         tensor=x.unsqueeze(0).to(device)
-        pred=probability>=0.5
+        pred=probability>=threshold
         gt=gt_boxes_for_size(records[image_id],root/"stage_2_train_images"/f"{image_id}.dcm",size)
         if pred:
             cam=cam_engine(tensor,1); pred_box=heatmap_box(cam,(size,size))

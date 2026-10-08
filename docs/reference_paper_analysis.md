@@ -62,7 +62,7 @@ Other paper-level reproduction details are underspecified, including complete la
 
 ### Dataset handling and subset policy
 
-Our project reads the locally supplied RSNA files from `data/raw/` and does not download, modify, or commit the original dataset. The project supports a reproducible stratified image-level subset, capped at 15,000 images by default. It aggregates all bounding-box rows by image before sampling, samples image IDs by image-level pneumonia target with a fixed seed, then creates the train/validation/test split from that selected subset. The configured seed defaults to 42. Dataset counts and class distribution must be computed from the actual files when present; paper-reported figures must not be substituted for local inspection.
+Our project reads the locally supplied RSNA files from `data/raw/` and does not download, modify, or commit the original dataset. The project supports a reproducible stratified image-level subset, currently capped at the 26,684 labeled training images available locally. It aggregates all bounding-box rows by image before sampling, samples image IDs by image-level pneumonia target with a fixed seed, then creates the train/validation/test split from that selected subset. The current final experiment uses an 80/10/10 split and seed 42. Dataset counts and class distribution must be computed from the actual files; paper-reported figures must not be substituted for local inspection.
 
 ### Evaluation protocol (defined before modeling)
 
@@ -79,4 +79,4 @@ The protocol fixes the evaluation population and denominator in advance, evaluat
 
 ## Proposed improvements (not part of the paper's method)
 
-The following are project design choices, not claims about what the authors did: a maximum 15,000-image reproducible stratified subset for the one-week/M3 Pro constraint; fixed seed configuration; explicit image-level aggregation before sampling; a documented held-out protocol with classifier-conditioned and classifier-independent localization; and actual local dataset audits after files are supplied. Model architecture or training changes beyond the paper should be proposed separately and identified as project improvements.
+The following are project design choices, not claims about what the authors did: a reproducible image-level subset capped at the 26,684 locally available labeled images; fixed seed configuration; explicit image-level aggregation before sampling; an 80/10/10 held-out protocol with classifier-conditioned and classifier-independent localization; and actual local dataset audits. Model architecture or training changes beyond the paper should be proposed separately and identified as project improvements.

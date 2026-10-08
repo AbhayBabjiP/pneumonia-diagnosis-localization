@@ -6,12 +6,12 @@ Obtain the RSNA Pneumonia Detection Challenge dataset separately and place it un
 
 ## Reproducible subset
 
-The default maximum is `max_dataset_images: 15000` and default random seed is `42` (see `configs/config.yaml`). The preparation interface accepts `--max_images`; supported experiment sizes include 1000, 5000, 10000, and 15000. Any request greater than 15000 raises an error. Sampling is stratified on image-level pneumonia target. The label rows are first aggregated by image, retaining every bounding box attached to that image; image IDs, never individual boxes, are sampled. The train/validation/test split (70/20/10 by default) happens after subset selection and is reproducible with the configured seed.
+The default maximum is `max_dataset_images: 26684` and default random seed is `42` (see `configs/config.yaml`). The preparation interface accepts `--max_images`; supported experiment sizes include 1000, 5000, 10000, 20000, and 26684. Any request greater than 26684 raises an error. Sampling is stratified on image-level pneumonia target. The label rows are first aggregated by image, retaining every bounding box attached to that image; image IDs, never individual boxes, are sampled. The train/validation/test split (80/10/10 by default) happens after subset selection and is reproducible with the configured seed.
 
 Run, after the RSNA labels CSV exists:
 
 ```bash
-python -m src.data.selection --max_images 15000 --seed 42
+python -m src.data.selection --max_images 26684 --seed 42
 ```
 
 The default labels path is `data/raw/stage_2_train_labels.csv`. The command reports selected count, positive/negative counts, positive percentage, and split counts based on the actual local file. It does not copy, delete, or rewrite dataset files. For a selected image, all of its ground-truth boxes remain available in the aggregated record.
