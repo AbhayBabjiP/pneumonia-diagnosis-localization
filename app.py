@@ -36,7 +36,13 @@ def load_model(checkpoint_path):
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
     threshold = 0.5
-    metrics_path = Path("results/metrics.json")
+    # Match the decision threshold to this checkpoint's experiment. The final
+    # 224px model has its held-out evaluation under results/densenet121_224/.
+    metrics_path = (
+        Path("results/densenet121_224/metrics.json")
+        if int(checkpoint.get("image_size", 128)) == 224
+        else Path("results/metrics.json")
+    )
     if metrics_path.exists():
         try:
             experiment = json.loads(metrics_path.read_text()).get("experiment", {})
