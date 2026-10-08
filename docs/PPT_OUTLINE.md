@@ -70,24 +70,24 @@ Presenter: [Name] · [Course / Institution] · [Date]
 - Preserved baseline command: `.venv/bin/python -m src.train --data-root data/raw --max-images 26684 --seed 42 --epochs 2 --batch-size 32 --image-size 128 --pretrained`
 - Architecture: ImageNet-pretrained DenseNet121; AdamW, learning rate 1e-4, class-weighted BCE.
 - Baseline best checkpoint was epoch 2, validation loss 0.6925.
-- 224×224, up to 10 epochs with patience 3 was attempted, but stopped before the first epoch completed because only CPU was available in this runtime.
+- 224×224 experiment: MPS, 6 epochs (early stopping after 3 non-improving epochs), best checkpoint at epoch 3 (validation loss 0.6725).
 - Checkpoint: `checkpoints/best_model.pt`.
 
 ## 11. Classification results
 
-- Validation threshold sweep selected **0.70** by F1 (validation F1 **0.6517**, sensitivity **0.7188**); held fixed for test.
-- Held-out test set: 2,669 images; confusion matrix `[[1759, 307], [173, 430]]`.
-- Accuracy **0.8202**, precision **0.5834**, sensitivity **0.7131**, specificity **0.8514**.
-- F1 **0.6418**, AUROC **0.8697**. Sensitivity/F1 improved over threshold 0.8464; accuracy remains below 85%.
+- Validation threshold sweep selected **0.70** by F1 (validation F1 **0.6662**, sensitivity **0.6949**); held fixed for test.
+- Held-out test set: 2,669 images; confusion matrix `[[1797, 269], [192, 411]]`.
+- Accuracy **0.8273**, precision **0.6044**, sensitivity **0.6816**, specificity **0.8698**.
+- F1 **0.6407**, AUROC **0.8815**. Accuracy, precision, specificity, and AUROC modestly improved over the tuned 128×128 baseline; sensitivity and F1 were similar/slightly lower.
 - These are this project's results, not the reference paper's reported metrics.
 
 ## 12. Localization results
 
 - 603 pneumonia-positive test images with ground-truth boxes.
 - Adaptive threshold + morphological cleanup + connected components; IoU takes max across predicted components and GT boxes.
-- Primary mean/median IoU **0.1038 / 0.0645**; **9.95%** reached 0.3 and **0.50%** reached 0.5.
-- Independent mean/median IoU **0.1187 / 0.0775**; **10.28%** reached 0.3 and **0.50%** reached 0.5.
-- Mean IoU did not improve over baseline.
+- Primary mean/median IoU **0.2051 / 0.1880**; **34.00%** reached 0.3 and **5.97%** reached 0.5.
+- Independent mean/median IoU **0.2307 / 0.2290**; **37.81%** reached 0.3 and **6.47%** reached 0.5.
+- Localization improved over the 128×128 tuned baseline (primary mean IoU 0.1038; independent 0.1187), though it remains imperfect.
 - A classifier false negative receives IoU 0 in the primary score. Localization performance is weak.
 
 ## 13. Visual examples
@@ -105,14 +105,14 @@ Presenter: [Name] · [Course / Institution] · [Date]
 
 ## 15. Limitations
 
-- Accuracy at the F1-oriented threshold was 82.0%, below 85%; sensitivity is 71.3%.
-- Localization remains weak: primary mean IoU 0.1038; 0.50% reached IoU ≥ 0.5.
+- 224×224 test accuracy was 82.7%, below 85%; sensitivity was 68.2%.
+- Localization improved: primary mean IoU 0.2051; 5.97% reached IoU ≥ 0.5.
 - This is an evaluation on the RSNA training partition, not external clinical validation.
 - Grad-CAM boxes are coarse explanations, not clinically validated lesion outlines.
 - The reference paper's localization evaluation remains ambiguous.
 
 ## 16. Conclusion
 
-- The reproducible 128×128 baseline completed training and held-out evaluation; 224×224 longer training is incomplete.
-- Threshold selection improved sensitivity and F1, while Grad-CAM box localization remains poor.
+- The 224×224 six-epoch experiment improved AUROC and Grad-CAM localization over baseline.
+- Accuracy remained below 85%, and localization still needs improvement and external validation.
 - Further data and localization improvements are needed; results are not suitable for clinical use.

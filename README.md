@@ -46,11 +46,13 @@ python -m src.train --data-root data/raw --max-images 26684 --seed 42 --epochs 2
 
 The selected IDs/split are recorded at `results/selection_manifest.csv`; the baseline checkpoint is `checkpoints/best_model.pt`. Supported subset sizes up to 26,684 include 1000, 5000, 10000, 20000, and 26684. A request above the cap fails clearly.
 
-The planned next experiment uses the same DenseNet121/AdamW setup with 224×224 inputs, up to 10 epochs, and early stopping after three epochs without validation-loss improvement:
+The higher-resolution experiment uses the same DenseNet121/AdamW setup with 224×224 inputs, up to 10 epochs, and early stopping after three epochs without validation-loss improvement:
 
 ```bash
 python -m src.train --data-root data/raw --max-images 26684 --seed 42 --epochs 10 --patience 3 --batch-size 8 --image-size 224 --pretrained --checkpoint checkpoints/densenet121_224_ep10.pt
 ```
+
+This run completed six epochs on MPS and early-stopped; the best checkpoint is from epoch 3 (validation loss 0.6725). It retains the same seed-42 80/10/10 split as the baseline.
 
 ## Evaluation command
 
@@ -76,7 +78,7 @@ The code selects CUDA if available, then Apple MPS using `torch.backends.mps.is_
 
 ## Actual final results and current limitations
 
-Run date: 2026-10-08. The baseline uses all 26,684 labeled images (6,012 positive, 20,672 negative), seed 42; split counts were train 21,347 (4,783 positive / 16,564 negative), validation 2,668 (626 / 2,042), and test 2,669 (603 / 2,066). It used two epochs, 128×128 inputs, batch size 32, ImageNet-pretrained DenseNet121, and AdamW at 1e-4. The best checkpoint was epoch 2 (validation loss 0.6925). The prior accuracy-selected threshold was 0.8464. New threshold selection uses validation F1.
+Run date: 2026-10-08. Both experiments use all 26,684 labeled images (6,012 positive, 20,672 negative), seed 42; split counts were train 21,347 (4,783 positive / 16,564 negative), validation 2,668 (626 / 2,042), and test 2,669 (603 / 2,066). The 128×128 baseline used two epochs, batch size 32, ImageNet-pretrained DenseNet121, AdamW at 1e-4, and best validation loss 0.6925 at epoch 2. The 224×224 experiment used batch size 8, MPS, ImageNet-pretrained DenseNet121, AdamW at 1e-4, and early-stopped after six epochs; its best checkpoint was epoch 3 with validation loss 0.6725. Threshold selection uses validation F1.
 
 Validation threshold comparison (threshold, recall, precision, F1, specificity, accuracy):
 
@@ -89,6 +91,8 @@ Validation threshold comparison (threshold, recall, precision, F1, specificity, 
 | **0.70** | **0.7188** | **0.5960** | **0.6517** | **0.8506** | **0.8197** |
 | 0.80 | 0.5815 | 0.6842 | 0.6287 | 0.9177 | 0.8388 |
 | 0.85 | 0.4856 | 0.7451 | 0.5880 | 0.9491 | 0.8403 |
+
+The 224×224 model's validation sweep selected 0.70 as well: validation F1 0.6662, sensitivity 0.6949, specificity 0.8800, accuracy 0.8366.
 
 Held-out classification results at the validation-selected probability threshold 0.70:
 
@@ -104,9 +108,11 @@ Held-out classification results at the validation-selected probability threshold
 
 Adaptive, cleaned multi-component Grad-CAM boxes were evaluated on 603 pneumonia-positive test images with boxes. Primary classifier-conditioned mean IoU was **0.1038** (median 0.0645), with **9.95%** at IoU ≥ 0.3 and **0.50%** at IoU ≥ 0.5. Classifier-independent mean IoU was **0.1187** (median 0.0775), with **10.28%** at IoU ≥ 0.3 and **0.50%** at IoU ≥ 0.5. This extraction rule did not improve mean IoU over the prior single-box baseline; localization remains weak.
 
+For the 224×224, six-epoch run at the same validation-selected threshold 0.70, held-out test accuracy was **0.8273**, precision **0.6044**, sensitivity **0.6816**, specificity **0.8698**, F1 **0.6407**, and AUROC **0.8815** (confusion matrix `[[1797, 269], [192, 411]]`). Localization on the same 603 positive test images improved: conditioned mean/median IoU **0.2051 / 0.1880**, **34.00%** at IoU ≥ 0.3 and **5.97%** at IoU ≥ 0.5; independent mean/median IoU **0.2307 / 0.2290**, **37.81%** at IoU ≥ 0.3 and **6.47%** at IoU ≥ 0.5.
+
 Generated artifacts: `checkpoints/best_model.pt`; `results/metrics.json`; `results/localization_metrics.json`; `results/confusion_matrix.svg`; `results/roc_curve.svg`; `results/selection_manifest.csv`; and high-resolution PNGs under `results/examples/`. The results folder is ignored by Git to keep generated artifacts and dataset-related outputs out of the public repository.
 
-Limitations: test accuracy at the F1-oriented operating point is 82.0%; sensitivity rose from 48.3% to 71.3%, while specificity fell to 85.1%. Adaptive component localization remains poor. The planned 224×224, 10-epoch training was started but stopped before completing an epoch because this runtime only exposed CPU and a full-dataset run was not practical. The images came from the RSNA training partition, so this is not external validation; Grad-CAM boxes are coarse explanations rather than validated lesion segmentations; and the reference paper leaves its CAM IoU interpretation ambiguous.
+Limitations: the 224×224 run improved AUROC and localization over the 128×128 baseline, while its test accuracy, sensitivity, and F1 were slightly lower than the baseline's tuned-threshold results. It early-stopped at six epochs, with best validation loss at epoch 3. The images came from the RSNA training partition, so this is not external validation; Grad-CAM boxes are coarse explanations rather than validated lesion segmentations; and the reference paper leaves its CAM IoU interpretation ambiguous.
 
 ## PPT and report
 
