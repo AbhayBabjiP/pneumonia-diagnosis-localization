@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
+THRESHOLD_CANDIDATES = (0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.85)
+
 
 def binary_metrics(labels, probabilities, threshold=0.5):
     y = np.asarray(labels, dtype=np.int64)
@@ -51,6 +53,20 @@ def best_accuracy_threshold(labels, probabilities):
     return float(thresholds[best]), float(accuracies[best])
 
 
+def compare_thresholds(labels, probabilities, thresholds=THRESHOLD_CANDIDATES):
+    """Return requested threshold metrics; selection favors F1, then sensitivity."""
+    return [binary_metrics(labels, probabilities, float(t)) for t in thresholds]
+
+
+def select_f1_threshold(labels, probabilities, thresholds=THRESHOLD_CANDIDATES):
+    """Select the listed validation threshold maximizing F1, then sensitivity."""
+    comparison = compare_thresholds(labels, probabilities, thresholds)
+    if not comparison:
+        return 0.5, comparison
+    selected = max(comparison, key=lambda row: (row["f1"], row["recall_sensitivity"], row["specificity"]))
+    return float(selected["threshold"]), comparison
+
+
 def box_iou(a, b):
     ax, ay, aw, ah = a
     bx, by, bw, bh = b
@@ -62,15 +78,64 @@ def box_iou(a, b):
 
 
 def heatmap_box(cam, original_size, threshold=0.65):
+    boxes = heatmap_boxes(cam, original_size, threshold)
     width, height = original_size
-    cam = cam.detach().cpu().numpy()
-    binary = cam >= max(threshold, float(np.quantile(cam, 0.85)))
-    ys, xs = np.where(binary)
-    if len(xs) == 0:
+    if not boxes:
         return [0, 0, width, height]
-    x0, x1 = xs.min() * width / cam.shape[1], (xs.max() + 1) * width / cam.shape[1]
-    y0, y1 = ys.min() * height / cam.shape[0], (ys.max() + 1) * height / cam.shape[0]
-    return [float(x0), float(y0), float(x1 - x0), float(y1 - y0)]
+    return max(boxes, key=lambda b: b[2] * b[3])
+
+
+def heatmap_boxes(cam, original_size, threshold=0.65, min_area_fraction=0.002):
+    """Adaptive CAM threshold, binary cleanup, and connected-component boxes."""
+    width, height = original_size
+    array = cam.detach().cpu().numpy() if hasattr(cam, "detach") else np.asarray(cam)
+    array = np.squeeze(array).astype(np.float32)
+    if array.ndim != 2 or not np.isfinite(array).all():
+        return []
+    lo, hi = float(array.min()), float(array.max())
+    if hi - lo < 1e-8:
+        return []
+    normalized = np.clip((array - lo) / (hi - lo), 0, 1)
+    adaptive = max(float(threshold), float(np.quantile(normalized, 0.80)))
+    mask = normalized >= adaptive
+    # 3x3 binary closing/opening implemented with NumPy to avoid a SciPy dependency.
+    def neighborhood_reduce(source, operation):
+        padded = np.pad(source, 1, mode="constant", constant_values=(operation == "min"))
+        neighbors = [padded[dy:dy + source.shape[0], dx:dx + source.shape[1]]
+                     for dy in range(3) for dx in range(3)]
+        return np.maximum.reduce(neighbors) if operation == "max" else np.minimum.reduce(neighbors)
+
+    mask = neighborhood_reduce(neighborhood_reduce(mask, "max"), "min")
+    mask = neighborhood_reduce(neighborhood_reduce(mask, "min"), "max")
+    # Flood-fill 8-connected components.
+    seen = np.zeros(mask.shape, dtype=bool)
+    components = []
+    height_cam, width_cam = mask.shape
+    for sy, sx in zip(*np.where(mask & ~seen)):
+        if seen[sy, sx]:
+            continue
+        seen[sy, sx] = True
+        stack = [(int(sy), int(sx))]
+        xs, ys = [], []
+        while stack:
+            cy, cx = stack.pop()
+            xs.append(cx); ys.append(cy)
+            for ny in range(max(0, cy - 1), min(height_cam, cy + 2)):
+                for nx in range(max(0, cx - 1), min(width_cam, cx + 2)):
+                    if mask[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+        components.append((np.asarray(xs), np.asarray(ys)))
+    min_area = max(2, int(mask.size * min_area_fraction))
+    boxes = []
+    scale_x, scale_y = width / array.shape[1], height / array.shape[0]
+    for xs, ys in components:
+        if len(xs) < min_area:
+            continue
+        x0, x1 = xs.min(), xs.max() + 1
+        y0, y1 = ys.min(), ys.max() + 1
+        boxes.append([float(x0 * scale_x), float(y0 * scale_y), float((x1 - x0) * scale_x), float((y1 - y0) * scale_y)])
+    return boxes
 
 
 def save_visual(original, cam, pred_box, gt_boxes, path, title=""):

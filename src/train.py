@@ -48,6 +48,7 @@ def main(argv=None):
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--workers", type=int, default=0)
+    parser.add_argument("--patience", type=int, default=3, help="Stop after this many epochs without validation-loss improvement")
     parser.add_argument("--pretrained", action="store_true", help="Initialize from ImageNet weights (requires cached/downloadable weights)")
     parser.add_argument("--checkpoint", default="checkpoints/best_model.pt")
     args = parser.parse_args(argv)
@@ -65,7 +66,7 @@ def main(argv=None):
     negative = len(splits["train"]) - positive
     loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([negative / max(positive, 1)], device=device))
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
-    best = float("inf"); best_epoch = 0; checkpoint = Path(args.checkpoint); checkpoint.parent.mkdir(parents=True, exist_ok=True)
+    best = float("inf"); best_epoch = 0; stale_epochs = 0; checkpoint = Path(args.checkpoint); checkpoint.parent.mkdir(parents=True, exist_ok=True)
     started = time.time()
     for epoch in range(1, args.epochs + 1):
         train_loss = run_epoch(model, loaders["train"], loss_fn, optimizer, device, True)
@@ -89,8 +90,15 @@ def main(argv=None):
                 "learning_rate": 1e-4,
                 "best_epoch": best_epoch,
                 "best_validation_loss": best,
+                "patience": args.patience,
             }, checkpoint)
             print(f"Saved best checkpoint: {checkpoint}", flush=True)
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
+            if stale_epochs >= args.patience:
+                print(f"Early stopping after {args.patience} epochs without validation-loss improvement.", flush=True)
+                break
     print(f"Training complete in {(time.time()-started)/60:.1f} minutes; best checkpoint={checkpoint}")
     return 0
 
