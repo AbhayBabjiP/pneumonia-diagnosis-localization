@@ -1,0 +1,7 @@
+# Dataset preparation defaults. The local RSNA data must be supplied separately.
+max_dataset_images: 15000
+seed: 42
+train_fraction: 0.70
+validation_fraction: 0.20
+test_fraction: 0.10
+data_root: data/raw

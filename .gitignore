@@ -1,0 +1,12 @@
+# Local dataset and generated artifacts
+data/
+*.dcm
+*.zip
+checkpoints/
+results/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.torch_cache/
