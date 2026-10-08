@@ -100,12 +100,16 @@ Checkpoints are too large for GitHub and are kept outside the repo.
 
 The demo needs two local files that are not in the repository:
 
-| File | Location | Download |
-|---|---|---|
-| Trained model (DenseNet121, 224×224) | `checkpoints/best_model.pt` | [PASTE DRIVE / RELEASE LINK HERE] |
-| Final evaluation metrics | `results/metrics.json` **or** `results/densenet121_224/metrics.json` | Same link as above |
+The trained checkpoint and final generated metrics are provided separately
+to the project team and are not stored in this repository.
 
-Create the folders if they do not exist:
+Place the final checkpoint at:
+
+checkpoints/best_model.pt
+
+Place the final metrics at:
+
+results/densenet121_224/metrics.json
 
 ```bash
 mkdir -p checkpoints results/densenet121_224
@@ -335,8 +339,8 @@ data/    checkpoints/    results/    *.dcm    *.zip
 
 | Member | Contribution |
 |---|---|
-| [Member 1] | [e.g. data pipeline, model training, checkpoint] |
-| [Member 2] | [e.g. evaluation, Streamlit demo, README, write-up] |
+| [Dheeraj p] | [e.g. data pipeline, model training, checkpoint] |
+| [Abhay Babji P ] | [e.g. evaluation, Streamlit demo, README, write-up] |
 
 ---
 
