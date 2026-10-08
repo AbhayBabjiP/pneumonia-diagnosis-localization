@@ -2,7 +2,7 @@
 
 **UE24CS352A – Machine Learning | Mini-Project**
 
-**Team:** [Dheeraj P – PES2UG24CS342] · [Abhay Babji P – PES2UG24CS342]
+**Team:** [Dheeraj P – PES2UG24CS341] · [Abhay Babji P – PES2UG24CS342]
 **Section:** [F]
 **Problem statement:** Weakly supervised pneumonia localization on chest X-rays (based on Huang, Monam & Cortes, *Weakly Supervised Pneumonia Localization*, CS229 2018).
 
