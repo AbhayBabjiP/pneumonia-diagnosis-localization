@@ -1,6 +1,6 @@
 # Final presentation: exact slide content
 
-**Final run:** ImageNet-pretrained DenseNet121, trained for two epochs on all 26,684 labeled images (seed 42, 128×128 inputs, batch size 32) using MPS. The 80/10/10 split has 2,669 held-out test images. Validation selected a fixed probability threshold of 0.8464. Accuracy was 83.5%, below 85%; localization remains weak.
+**Final run:** ImageNet-pretrained DenseNet121, trained for six epochs (best epoch 3) on all 26,684 labeled images (seed 42, 224×224 inputs, batch size 8) using MPS. The 80/10/10 split has 2,669 held-out test images. Validation selected threshold 0.70 by F1. Test accuracy was 82.73%; classifier-conditioned localization mean IoU was 0.2051.
 
 ## 1. Title
 
@@ -54,7 +54,7 @@ Presenter: [Name] · [Course / Institution] · [Date]
 - Input: DICOM X-ray, converted to normalized RGB tensor.
 - Classifier: DenseNet121 with one binary logit.
 - Explanation: Grad-CAM from the final DenseNet feature normalization layer.
-- Localization: threshold Grad-CAM to produce one rectangular region.
+- Localization evaluation: adaptive Grad-CAM thresholding, morphological cleanup, connected components, then IoU against grouped boxes. The demo displays a heatmap-derived region box.
 - Demo: Streamlit upload, probability, class, overlay, and region box.
 
 ## 9. Methodology
@@ -67,10 +67,10 @@ Presenter: [Name] · [Course / Institution] · [Date]
 
 ## 10. Training
 
-- Preserved baseline command: `.venv/bin/python -m src.train --data-root data/raw --max-images 26684 --seed 42 --epochs 2 --batch-size 32 --image-size 128 --pretrained`
+- Final command: `.venv/bin/python -m src.train --data-root data/raw --max-images 26684 --seed 42 --epochs 10 --patience 3 --batch-size 8 --image-size 224 --pretrained --checkpoint checkpoints/densenet121_224_ep10.pt`
 - Architecture: ImageNet-pretrained DenseNet121; AdamW, learning rate 1e-4, class-weighted BCE.
-- Baseline best checkpoint was epoch 2, validation loss 0.6925.
-- 224×224 experiment: MPS, 6 epochs (early stopping after 3 non-improving epochs), best checkpoint at epoch 3 (validation loss 0.6725).
+- MPS; six epochs completed before early stopping; best checkpoint at epoch 3 (validation loss 0.6725).
+- Evaluation command: `.venv/bin/python -m src.evaluate --data-root data/raw --max-images 26684 --seed 42 --checkpoint checkpoints/densenet121_224_ep10.pt --results results/densenet121_224 --batch-size 8`
 - Checkpoint: `checkpoints/best_model.pt`.
 
 ## 11. Classification results
@@ -92,14 +92,14 @@ Presenter: [Name] · [Course / Institution] · [Date]
 
 ## 13. Visual examples
 
-- Use `results/examples/positive_correctly_classified_cb4a1fca-136c-4577-bcef-d934c9f14f2c.png` (classifier positive, IoU 0.639).
-- Use `results/examples/positive_incorrectly_localized_e09dbb79-cdc9-44a1-9547-6f5969a170dc.png` (IoU 0.000).
-- Use `results/examples/negative_example_68a43ce5-2021-4c3c-8e62-11a93d132ff5.png` (negative ground truth, predicted probability 0.316).
+- Use `results/examples/positive_correctly_classified_8445fce3-aa62-44de-aba5-3750dd837d8b.png` (positive prediction, probability 0.947, IoU 0.678).
+- Use `results/examples/positive_incorrectly_localized_9e0e05ef-1c6a-4883-957e-f36f5c59b9ad.png` (positive prediction with IoU 0.000).
+- Use `results/examples/negative_example_68a43ce5-2021-4c3c-8e62-11a93d132ff5.png` (negative prediction, probability 0.091).
 - Green box is Grad-CAM prediction; red boxes are RSNA ground truth.
 
 ## 14. Live demo
 
-- Launch with `streamlit run app.py`; checkpoint is available at `checkpoints/best_model.pt`.
+- Launch with `streamlit run app.py`; final checkpoint is `checkpoints/best_model.pt`.
 - Upload PNG, JPG, or DICOM; show predicted probability, class, Grad-CAM overlay, and predicted box.
 - Upload a PNG, JPG, or DICOM and show probability, predicted class, Grad-CAM overlay, and predicted region box.
 

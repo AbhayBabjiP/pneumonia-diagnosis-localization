@@ -1,0 +1,24 @@
+flowchart LR
+    A[RSNA DICOM images] --> B[Decode, resize to 224×224, normalize]
+    L[RSNA labels and boxes] --> C[Group annotation rows by image ID]
+    B --> C
+    C --> D[Reproducible stratified split<br/>seed 42 · 80/10/10]
+    D --> E[Train split]
+    D --> F[Validation split]
+    D --> G[Test split]
+    E --> H[ImageNet pretrained DenseNet121]
+    H --> I[One pneumonia logit]
+    I --> J[Weighted BCE · AdamW]
+    J --> H
+    F --> K[Early stopping and best checkpoint]
+    H --> K
+    K --> M[Validation threshold sweep<br/>select by F1 · threshold 0.70]
+    K --> N[Grad-CAM heatmap]
+    N --> O[Adaptive threshold + morphology<br/>connected-component boxes]
+    G --> P[Held-out classification metrics]
+    M --> P
+    G --> O
+    L --> Q[Ground-truth boxes, evaluation only]
+    Q --> R[IoU: classifier-conditioned<br/>and classifier-independent]
+    O --> R
+    K --> S[Streamlit image upload demo]
